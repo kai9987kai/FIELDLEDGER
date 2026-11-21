@@ -1,0 +1,329 @@
+>>SOURCE FORMAT FREE
+*> =====================================================================
+*> FIELDLEDGER - main.cob
+*> Ecological Evidence, Intervention & Accountability Engine.
+*> Top-level CLI entry point and command orchestrator.
+*> =====================================================================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. FIELDLEDGER.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+COPY "LIMITS.cpy".
+COPY "RUN-CONFIG.cpy".
+COPY "STUDY-RECORD.cpy".
+COPY "ERROR-RECORD.cpy".
+COPY "BACI-RESULT.cpy".
+COPY "UTILS-IFACE.cpy".
+
+01 WS-OP                    PIC X(24).
+01 WS-RC                    PIC S9(4) COMP-5.
+01 WS-RC2                   PIC S9(4) COMP-5.
+01 WS-I                     PIC 9(6) COMP-5.
+01 WS-N1                    PIC X(32).
+01 WS-N2                    PIC X(32).
+01 WS-N3                    PIC X(32).
+
+PROCEDURE DIVISION.
+MAIN-ENTRY.
+    *> Initialize runtime defaults, OS detection, timestamps, executable dir
+    INITIALIZE CFG-REQ
+    MOVE "INIT" TO CREQ-OP
+    CALL "CONFIGURATION" USING CFG-REQ
+
+    *> Parse command-line arguments
+    CALL "COMMAND-PARSER"
+    IF CFG-EXIT-CODE NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE CFG-EXIT-CODE TO RETURN-CODE
+        STOP RUN
+    END-IF
+
+    EVALUATE FUNCTION TRIM(CFG-COMMAND)
+        WHEN "HELP"
+            INITIALIZE CFG-REQ
+            MOVE "SHOW-HELP" TO CREQ-OP
+            CALL "CONFIGURATION" USING CFG-REQ
+            MOVE FL-EXIT-OK TO RETURN-CODE
+
+        WHEN "VERSION"
+            INITIALIZE CFG-REQ
+            MOVE "SHOW-VERSION" TO CREQ-OP
+            CALL "CONFIGURATION" USING CFG-REQ
+            MOVE FL-EXIT-OK TO RETURN-CODE
+
+        WHEN "INIT"
+            PERFORM CMD-INIT
+
+        WHEN "DEMO"
+            PERFORM CMD-DEMO
+
+        WHEN "VALIDATE"
+            PERFORM CMD-VALIDATE
+
+        WHEN "ANALYZE"
+            PERFORM CMD-ANALYZE-BACI
+
+        WHEN "REPORT"
+            PERFORM CMD-REPORT
+
+        WHEN "MANIFEST"
+            PERFORM CMD-MANIFEST
+
+        WHEN "VERIFY"
+            PERFORM CMD-VERIFY
+
+        WHEN OTHER
+            DISPLAY "ERROR: Unhandled command '" FUNCTION TRIM(CFG-COMMAND) "'"
+            MOVE FL-EXIT-CLI-ERR TO RETURN-CODE
+    END-EVALUATE
+
+    STOP RUN.
+
+CMD-INIT.
+    MOVE "INIT-STUDY" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "DATA-IMPORT" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+    DISPLAY "Initialised FIELDLEDGER study templates in: "
+            FUNCTION TRIM(CFG-STUDY-PATH)
+    DISPLAY "  Files: study.csv, sources.csv, sites.csv, surveys.csv, observations.csv"
+    MOVE FL-EXIT-OK TO RETURN-CODE
+    .
+
+CMD-DEMO.
+    *> Create synthetic wetland dataset inside <out>/wetland-demo
+    INITIALIZE CFG-REQ
+    MOVE "ENSURE-DIR" TO CREQ-OP
+    MOVE CFG-OUT-PATH TO CREQ-PATH-A
+    CALL "CONFIGURATION" USING CFG-REQ
+
+    INITIALIZE CFG-REQ
+    MOVE "JOIN-PATH"    TO CREQ-OP
+    MOVE CFG-OUT-PATH   TO CREQ-PATH-A
+    MOVE "wetland-demo" TO CREQ-PATH-B
+    CALL "CONFIGURATION" USING CFG-REQ
+    MOVE CREQ-PATH-OUT TO CFG-STUDY-PATH
+
+    MOVE "DEMO-DATASET" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "DATA-IMPORT" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    DISPLAY "Created synthetic wetland demonstration dataset in: "
+            FUNCTION TRIM(CFG-STUDY-PATH)
+    PERFORM CMD-ANALYZE-BACI
+    .
+
+CMD-VALIDATE.
+    MOVE "VALIDATION_ONLY" TO CFG-ANALYSIS-TYPE
+    MOVE "IMPORT-ALL" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "DATA-IMPORT" USING WS-OP WS-RC
+
+    *> Always write validation-report.csv, data-quality.csv, and append ledger
+    MOVE "WRITE-VALIDATION" TO WS-OP
+    MOVE 0 TO WS-RC2
+    CALL "CSV-REPORTER" USING WS-OP WS-RC2
+    IF WS-RC2 NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC2 TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    MOVE "APPEND-RUN" TO WS-OP
+    MOVE 0 TO WS-RC2
+    CALL "EVIDENCE-LEDGER" USING WS-OP WS-RC2
+    IF WS-RC2 NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC2 TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    INITIALIZE ERR-REQ
+    MOVE "PRINT-SUMMARY" TO EREQ-OP
+    CALL "ERROR-HANDLING" USING ERR-REQ
+
+    IF WS-RC = FL-EXIT-OK
+        DISPLAY "VALIDATION PASSED. Reports written to: "
+                FUNCTION TRIM(CFG-OUT-PATH)
+    ELSE
+        DISPLAY "VALIDATION FAILED. See validation-report.csv in: "
+                FUNCTION TRIM(CFG-OUT-PATH)
+    END-IF
+    MOVE WS-RC TO RETURN-CODE
+    .
+
+CMD-ANALYZE-BACI.
+    MOVE "BACI" TO CFG-ANALYSIS-TYPE
+    MOVE "IMPORT-ALL" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "DATA-IMPORT" USING WS-OP WS-RC
+
+    *> Principle 1: Evidence before conclusions - halt if validation failed
+    IF WS-RC NOT = FL-EXIT-OK
+        MOVE "WRITE-VALIDATION" TO WS-OP
+        MOVE 0 TO WS-RC2
+        CALL "CSV-REPORTER" USING WS-OP WS-RC2
+        MOVE "APPEND-RUN" TO WS-OP
+        CALL "EVIDENCE-LEDGER" USING WS-OP WS-RC2
+        INITIALIZE ERR-REQ
+        MOVE "PRINT-SUMMARY" TO EREQ-OP
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        DISPLAY "ANALYSIS HALTED: Dataset failed validation. No statistical conclusions generated."
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    *> Run BACI + site-cluster bootstrap + LOSO sensitivity
+    MOVE 0 TO WS-RC
+    CALL "BACI-ENGINE" USING WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    *> Write all outputs with strict I/O status checks
+    MOVE "WRITE-VALIDATION" TO WS-OP
+    CALL "CSV-REPORTER" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    MOVE "WRITE-BACI" TO WS-OP
+    CALL "CSV-REPORTER" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    CALL "JSON-REPORTER" USING WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    CALL "MARKDOWN-REPORTER" USING WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    CALL "HTML-REPORTER" USING WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    MOVE "APPEND-RUN" TO WS-OP
+    CALL "EVIDENCE-LEDGER" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    *> Concise console summary
+    DISPLAY "FIELDLEDGER BACI Analysis Complete | Study: "
+            FUNCTION TRIM(ST-STUDY-ID) " | Run: " FUNCTION TRIM(CFG-RUN-ID)
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > BACI-COUNT
+        IF BR-CALCULABLE(WS-I) = "Y"
+            INITIALIZE NUM-REQ
+            MOVE "FMT-DEC6" TO NREQ-OP
+            MOVE BR-IMP-CHANGE(WS-I) TO NREQ-DEC-VAL
+            CALL "NUMERIC-UTILS" USING NUM-REQ
+            MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-N1
+
+            MOVE BR-CTRL-CHANGE(WS-I) TO NREQ-DEC-VAL
+            CALL "NUMERIC-UTILS" USING NUM-REQ
+            MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-N2
+
+            MOVE BR-BACI-EST(WS-I) TO NREQ-DEC-VAL
+            CALL "NUMERIC-UTILS" USING NUM-REQ
+            MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-N3
+
+            DISPLAY "  " FUNCTION TRIM(BR-SPECIES(WS-I))
+                    " [" FUNCTION TRIM(BR-METHOD(WS-I)) "]"
+                    " | ImpChg=" FUNCTION TRIM(WS-N1)
+                    " | CtrlChg=" FUNCTION TRIM(WS-N2)
+                    " | BACI=" FUNCTION TRIM(WS-N3)
+                    " detections/hr | CI=" FUNCTION TRIM(BR-CI-STATUS(WS-I))
+        ELSE
+            DISPLAY "  " FUNCTION TRIM(BR-SPECIES(WS-I))
+                    " [" FUNCTION TRIM(BR-METHOD(WS-I)) "]"
+                    " | BACI=NOT_CALCULABLE | Warnings="
+                    FUNCTION TRIM(BR-WARNINGS(WS-I))
+        END-IF
+    END-PERFORM
+    IF ERR-WARN-CNT > 0
+        INITIALIZE ERR-REQ
+        MOVE "PRINT-SUMMARY" TO EREQ-OP
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    END-IF
+    DISPLAY "Outputs written to: " FUNCTION TRIM(CFG-OUT-PATH)
+    MOVE FL-EXIT-OK TO RETURN-CODE
+    .
+
+CMD-REPORT.
+    MOVE "LOAD-FOR-REPORT" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "RUN-RECEIPT" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    CALL "MARKDOWN-REPORTER" USING WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    CALL "HTML-REPORTER" USING WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+        MOVE WS-RC TO RETURN-CODE
+        EXIT PARAGRAPH
+    END-IF
+
+    DISPLAY "Regenerated verified scientific reports (report.md, report.html) from "
+            "research-receipt.json in: " FUNCTION TRIM(CFG-OUT-PATH)
+    MOVE FL-EXIT-OK TO RETURN-CODE
+    .
+
+CMD-MANIFEST.
+    MOVE "RUN-MANIFEST" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "EVIDENCE-LEDGER" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+    END-IF
+    MOVE WS-RC TO RETURN-CODE
+    .
+
+CMD-VERIFY.
+    MOVE "RUN-VERIFY" TO WS-OP
+    MOVE 0 TO WS-RC
+    CALL "EVIDENCE-LEDGER" USING WS-OP WS-RC
+    IF WS-RC NOT = FL-EXIT-OK
+        DISPLAY "ERROR: " FUNCTION TRIM(CFG-ERROR-MSG)
+    END-IF
+    MOVE WS-RC TO RETURN-CODE
+    .

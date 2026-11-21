@@ -1,0 +1,16 @@
+# Compiled binaries, object files, and staged runtime DLLs
+build/
+
+# Ephemeral test, benchmark, and GUI run outputs (preserve output/wetland-demo/)
+output/test-runs/
+output/test-runs-sh/
+output/benchmark/
+output/demo-smoke/
+output/gui-*/
+output/bootstrap-demo/
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.tmp
+*.log

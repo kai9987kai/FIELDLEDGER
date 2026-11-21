@@ -1,0 +1,348 @@
+>>SOURCE FORMAT FREE
+*> =====================================================================
+*> FIELDLEDGER - VALIDATE-SITES.cob
+*> Loads and validates sites.csv (schema, site_role IMPACT/CONTROL,
+*> ISO 8601 reference_date, positive area_ha, capacity limit 2,000).
+*> =====================================================================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. VALIDATE-SITES.
+
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+    SELECT F-SITES ASSIGN TO DYNAMIC WS-FILE-PATH
+        ORGANIZATION IS LINE SEQUENTIAL
+        FILE STATUS IS WS-FS.
+
+DATA DIVISION.
+FILE SECTION.
+FD F-SITES.
+01 F-SITE-REC               PIC X(4096).
+
+WORKING-STORAGE SECTION.
+COPY "LIMITS.cpy".
+COPY "RUN-CONFIG.cpy".
+COPY "SITE-RECORD.cpy".
+COPY "CSV-WORK.cpy".
+COPY "UTILS-IFACE.cpy".
+
+01 WS-FILE-PATH             PIC X(512).
+01 WS-FS                    PIC XX.
+01 WS-EOF                   PIC X(1).
+01 WS-ROW-NUM               PIC 9(9) COMP-5.
+01 WS-ROW-OK                PIC X(1).
+01 WS-MISS-FIELD            PIC X(40).
+01 WS-LIMIT-HIT             PIC X(1).
+01 WS-ROLE-STR              PIC X(32).
+01 WS-REF-ORD               PIC 9(9) COMP-5.
+01 WS-AREA-VAL              PIC S9(9)V9(4) COMP-3.
+
+PROCEDURE DIVISION.
+MAIN-VAL-SITES.
+    MOVE 0   TO SITE-COUNT
+    MOVE 0   TO SITE-RAW-ROWS
+    MOVE 0   TO SITE-REJECTED-ROWS
+    MOVE 0   TO SITE-DUP-COUNT
+    MOVE 0   TO SITE-IMPACT-TOTAL
+    MOVE 0   TO SITE-CONTROL-TOTAL
+    MOVE "N" TO SITE-INDEX-BUILT
+    MOVE "N" TO WS-LIMIT-HIT
+
+    INITIALIZE CFG-REQ
+    MOVE "JOIN-PATH"    TO CREQ-OP
+    MOVE CFG-STUDY-PATH TO CREQ-PATH-A
+    MOVE "sites.csv"    TO CREQ-PATH-B
+    CALL "CONFIGURATION" USING CFG-REQ
+    MOVE CREQ-PATH-OUT TO WS-FILE-PATH
+
+    OPEN INPUT F-SITES
+    IF WS-FS NOT = "00"
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "FILE_MISSING" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE 0 TO EREQ-ROW
+        MOVE "file" TO EREQ-FIELD
+        STRING "Cannot open required file sites.csv (file status " WS-FS ")"
+               DELIMITED BY SIZE INTO EREQ-MESSAGE
+        END-STRING
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        GOBACK
+    END-IF
+
+    MOVE "N" TO WS-EOF
+    MOVE 0   TO WS-ROW-NUM
+
+    PERFORM UNTIL WS-EOF = "Y" OR WS-LIMIT-HIT = "Y"
+        MOVE SPACES TO F-SITE-REC
+        READ F-SITES
+            AT END
+                MOVE "Y" TO WS-EOF
+            NOT AT END
+                ADD 1 TO WS-ROW-NUM
+                PERFORM PROCESS-LINE
+        END-READ
+    END-PERFORM
+
+    CLOSE F-SITES
+
+    IF WS-ROW-NUM = 0
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "EMPTY_FILE" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE 0 TO EREQ-ROW
+        MOVE "file" TO EREQ-FIELD
+        MOVE "Required file sites.csv is empty" TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    END-IF
+    GOBACK.
+
+PROCESS-LINE.
+    INITIALIZE NORM-REQ
+    MOVE F-SITE-REC TO RN-BUF
+    IF WS-ROW-NUM = 1
+        MOVE "Y" TO RN-IS-FIRST-LINE
+    ELSE
+        MOVE "N" TO RN-IS-FIRST-LINE
+    END-IF
+    CALL "RECORD-NORMALISER" USING NORM-REQ
+
+    IF RN-STATUS = 01
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "INFO" TO EREQ-SEVERITY
+        MOVE "UTF8_BOM" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "encoding" TO EREQ-FIELD
+        MOVE RN-ERR-MSG TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    ELSE
+        IF RN-STATUS >= 02
+            INITIALIZE ERR-REQ
+            MOVE "ADD" TO EREQ-OP
+            MOVE "ERROR" TO EREQ-SEVERITY
+            MOVE "ENCODING_ERROR" TO EREQ-CODE
+            MOVE "sites.csv" TO EREQ-FILE
+            MOVE WS-ROW-NUM TO EREQ-ROW
+            MOVE "encoding" TO EREQ-FIELD
+            MOVE RN-ERR-MSG TO EREQ-MESSAGE
+            CALL "ERROR-HANDLING" USING ERR-REQ
+            IF WS-ROW-NUM > 1
+                ADD 1 TO SITE-RAW-ROWS
+                ADD 1 TO SITE-REJECTED-ROWS
+            END-IF
+            EXIT PARAGRAPH
+        END-IF
+    END-IF
+
+    IF RN-LEN = 0
+        EXIT PARAGRAPH
+    END-IF
+
+    INITIALIZE CSV-REQ
+    MOVE RN-BUF TO CSV-LINE
+    MOVE RN-LEN TO CSV-LINE-LEN
+    CALL "CSV-READER" USING CSV-REQ
+    IF NOT CSV-OK
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "CSV_MALFORMED" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "record" TO EREQ-FIELD
+        MOVE CSV-ERR-MSG TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        IF WS-ROW-NUM > 1
+            ADD 1 TO SITE-RAW-ROWS
+            ADD 1 TO SITE-REJECTED-ROWS
+        END-IF
+        EXIT PARAGRAPH
+    END-IF
+
+    IF WS-ROW-NUM = 1
+        PERFORM CHECK-HEADER
+        EXIT PARAGRAPH
+    END-IF
+
+    ADD 1 TO SITE-RAW-ROWS
+
+    IF SITE-COUNT >= FL-MAX-SITES
+        MOVE "Y" TO WS-LIMIT-HIT
+        MOVE FL-EXIT-LIMIT-ERR TO CFG-EXIT-CODE
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "RESOURCE_LIMIT" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "capacity" TO EREQ-FIELD
+        MOVE "Site record count exceeds documented v1.0.0 limit (2,000 sites)"
+            TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        EXIT PARAGRAPH
+    END-IF
+
+    IF CSV-FIELD-CNT NOT = 6
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "COLUMN_COUNT" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "record" TO EREQ-FIELD
+        MOVE "Expected exactly 6 columns in sites.csv" TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        ADD 1 TO SITE-REJECTED-ROWS
+        EXIT PARAGRAPH
+    END-IF
+
+    MOVE "Y" TO WS-ROW-OK
+    MOVE 0   TO WS-REF-ORD
+    MOVE 0   TO WS-AREA-VAL
+
+    IF FUNCTION TRIM(CSV-F-VAL(1)) = SPACES
+        MOVE "site_id" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+
+    MOVE FUNCTION TRIM(CSV-F-VAL(2)) TO WS-ROLE-STR
+    IF WS-ROLE-STR NOT = "IMPACT" AND WS-ROLE-STR NOT = "CONTROL"
+        MOVE "N" TO WS-ROW-OK
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "INVALID_SITE_ROLE" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "site_role" TO EREQ-FIELD
+        STRING "Invalid site_role '" FUNCTION TRIM(WS-ROLE-STR)
+               "'; must be strictly IMPACT or CONTROL"
+               DELIMITED BY SIZE INTO EREQ-MESSAGE
+        END-STRING
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    END-IF
+
+    IF FUNCTION TRIM(CSV-F-VAL(3)) = SPACES
+        MOVE "reference_date" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    ELSE
+        INITIALIZE DATE-REQ
+        MOVE "VALIDATE" TO DREQ-OP
+        MOVE FUNCTION TRIM(CSV-F-VAL(3)) TO DREQ-DATE-A
+        CALL "DATE-UTILS" USING DATE-REQ
+        IF DREQ-VALID = "Y"
+            MOVE DREQ-ORD-A TO WS-REF-ORD
+        ELSE
+            MOVE "N" TO WS-ROW-OK
+            INITIALIZE ERR-REQ
+            MOVE "ADD" TO EREQ-OP
+            MOVE "ERROR" TO EREQ-SEVERITY
+            MOVE "INVALID_DATE" TO EREQ-CODE
+            MOVE "sites.csv" TO EREQ-FILE
+            MOVE WS-ROW-NUM TO EREQ-ROW
+            MOVE "reference_date" TO EREQ-FIELD
+            MOVE DREQ-ERR-MSG TO EREQ-MESSAGE
+            CALL "ERROR-HANDLING" USING ERR-REQ
+        END-IF
+    END-IF
+
+    IF FUNCTION TRIM(CSV-F-VAL(4)) = SPACES
+        MOVE "area_ha" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    ELSE
+        INITIALIZE NUM-REQ
+        MOVE "PARSE-DEC" TO NREQ-OP
+        MOVE FUNCTION TRIM(CSV-F-VAL(4)) TO NREQ-TEXT-IN
+        MOVE 9   TO NREQ-MAX-INT-DIGITS
+        MOVE 4   TO NREQ-MAX-DEC-DIGITS
+        MOVE "N" TO NREQ-ALLOW-ZERO
+        MOVE "N" TO NREQ-ALLOW-NEG
+        CALL "NUMERIC-UTILS" USING NUM-REQ
+        IF NREQ-VALID = "Y"
+            MOVE NREQ-DEC-VAL TO WS-AREA-VAL
+        ELSE
+            MOVE "N" TO WS-ROW-OK
+            INITIALIZE ERR-REQ
+            MOVE "ADD" TO EREQ-OP
+            MOVE "ERROR" TO EREQ-SEVERITY
+            MOVE "INVALID_NUMERIC" TO EREQ-CODE
+            MOVE "sites.csv" TO EREQ-FILE
+            MOVE WS-ROW-NUM TO EREQ-ROW
+            MOVE "area_ha" TO EREQ-FIELD
+            MOVE NREQ-ERR-MSG TO EREQ-MESSAGE
+            CALL "ERROR-HANDLING" USING ERR-REQ
+        END-IF
+    END-IF
+
+    IF FUNCTION TRIM(CSV-F-VAL(5)) = SPACES
+        MOVE "habitat_type" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+    IF FUNCTION TRIM(CSV-F-VAL(6)) = SPACES
+        MOVE "region_code" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+
+    IF WS-ROW-OK = "Y"
+        ADD 1 TO SITE-COUNT
+        MOVE FUNCTION TRIM(CSV-F-VAL(1)) TO SITE-ID(SITE-COUNT)
+        MOVE WS-ROLE-STR                 TO SITE-ROLE(SITE-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(3)) TO SITE-REF-DATE(SITE-COUNT)
+        MOVE WS-REF-ORD                  TO SITE-REF-ORD(SITE-COUNT)
+        MOVE WS-AREA-VAL                 TO SITE-AREA-HA(SITE-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(5)) TO SITE-HABITAT(SITE-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(6)) TO SITE-REGION(SITE-COUNT)
+        MOVE WS-ROW-NUM                  TO SITE-ROW-NUM(SITE-COUNT)
+        MOVE "Y"                         TO SITE-VALID(SITE-COUNT)
+        IF WS-ROLE-STR = "IMPACT"
+            ADD 1 TO SITE-IMPACT-TOTAL
+        ELSE
+            ADD 1 TO SITE-CONTROL-TOTAL
+        END-IF
+    ELSE
+        ADD 1 TO SITE-REJECTED-ROWS
+    END-IF
+    .
+
+CHECK-HEADER.
+    IF CSV-FIELD-CNT = 6
+        AND FUNCTION TRIM(CSV-F-VAL(1)) = "site_id"
+        AND FUNCTION TRIM(CSV-F-VAL(2)) = "site_role"
+        AND FUNCTION TRIM(CSV-F-VAL(3)) = "reference_date"
+        AND FUNCTION TRIM(CSV-F-VAL(4)) = "area_ha"
+        AND FUNCTION TRIM(CSV-F-VAL(5)) = "habitat_type"
+        AND FUNCTION TRIM(CSV-F-VAL(6)) = "region_code"
+        CONTINUE
+    ELSE
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "HEADER_MISMATCH" TO EREQ-CODE
+        MOVE "sites.csv" TO EREQ-FILE
+        MOVE 1 TO EREQ-ROW
+        MOVE "header" TO EREQ-FIELD
+        MOVE "Expected header: site_id,site_role,reference_date,area_ha,habitat_type,region_code"
+            TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    END-IF
+    .
+
+ADD-MISSING-REQ.
+    MOVE "N" TO WS-ROW-OK
+    INITIALIZE ERR-REQ
+    MOVE "ADD" TO EREQ-OP
+    MOVE "ERROR" TO EREQ-SEVERITY
+    MOVE "MISSING_REQUIRED" TO EREQ-CODE
+    MOVE "sites.csv" TO EREQ-FILE
+    MOVE WS-ROW-NUM TO EREQ-ROW
+    MOVE WS-MISS-FIELD TO EREQ-FIELD
+    STRING "Required field '" FUNCTION TRIM(WS-MISS-FIELD) "' is empty"
+           DELIMITED BY SIZE INTO EREQ-MESSAGE
+    END-STRING
+    CALL "ERROR-HANDLING" USING ERR-REQ
+    .

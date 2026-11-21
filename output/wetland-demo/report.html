@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIELDLEDGER Report - Wetland Restoration Study</title>
+  <style>
+    :root{--bg:#f6f8fa;--card:#ffffff;--ink:#1b2430;--muted:#526071;--line:#d8e0e8;--accent:#1b5e4a;--warn:#8a4b08;--warnbg:#fff6e5;--info:#1d4e89;--infobg:#eef5fc;--neg:#9e2a2b;}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:24px;line-height:1.5;}
+    .wrap{max-width:1160px;margin:0 auto;}
+    header{background:#122c26;color:#fff;padding:24px 28px;border-radius:10px;margin-bottom:20px;}
+    header h1{margin:0 0 6px 0;font-size:1.55rem;}
+    header p{margin:0;opacity:0.9;font-size:0.95rem;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 22px;margin-bottom:18px;}
+    h2{margin:0 0 12px 0;font-size:1.15rem;color:#122c26;border-bottom:1px solid var(--line);padding-bottom:6px;}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:12px;}
+    .kpi{background:#f9fbfc;border:1px solid var(--line);border-radius:8px;padding:10px 14px;}
+    .kpi .lbl{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;}
+    .kpi .val{font-size:1.25rem;font-weight:700;margin-top:2px;}
+    table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-top:8px;}
+    th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+    th{background:#f0f4f8;font-weight:600;}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+    .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:0.76rem;font-weight:600;}
+    .b-ok{background:#e6f4ea;color:#1b5e4a;}
+    .b-warn{background:var(--warnbg);color:var(--warn);}
+    .callout{border-left:4px solid var(--warn);background:var(--warnbg);padding:12px 15px;border-radius:6px;margin:10px 0;font-size:0.92rem;}
+    .callout-info{border-left:4px solid var(--info);background:var(--infobg);padding:12px 15px;border-radius:6px;margin:10px 0;font-size:0.92rem;}
+    code{background:#eef2f6;padding:1px 5px;border-radius:4px;font-size:0.86em;}
+    .tbl-wrap{overflow-x:auto;}
+    footer{color:var(--muted);font-size:0.82rem;text-align:center;margin-top:22px;}
+  </style>
+</head>
+<body><div class="wrap">
+<header>
+  <h1>FIELDLEDGER Scientific Report: Wetland Restoration Study</h1>
+  <p>Study ID: <code>study_001</code> &middot; Run ID: <code>RUN-20261121T120519</code> &middot; Timestamp: <code>2026-11-21T12:05:19+00:00</code> &middot; Engine: FIELDLEDGER v1.0.0 (GnuCOBOL 3.2.0)</p>
+</header>
+<section class="card"><h2>1. Study Details</h2>
+<div class="tbl-wrap"><table><tbody>
+<tr><th>Study Design</th><td>BACI</td></tr>
+<tr><th>Primary Outcome &amp; Unit</th><td>species_observations (<code>detections_per_hour</code>)</td></tr>
+<tr><th>Description</th><td>Example synthetic ecological restoration experiment (reference fixture; expected BACI = +6 detections/hour)</td></tr>
+<tr><th>Observation Method Policy</th><td><code>point_count</code> (incompatible methods are never silently pooled)</td></tr>
+</tbody></table></div></section>
+<section class="card"><h2>2. Data Provenance &amp; Integrity</h2>
+<div class="callout-info"><strong>Input SHA-256 Manifest:</strong> <code>PRESENT</code> (generated <code>2026-11-20T18:15:39Z</code>). Source URLs record provenance metadata only and are not externally verified.</div>
+<div class="tbl-wrap"><table><thead><tr><th>Source ID</th><th>Type</th><th>Title</th><th>Organisation</th><th>Licence</th><th>Accessed</th></tr></thead><tbody>
+<tr><td><code>SRC001</code></td><td>synthetic_test_dataset</td><td>FIELDLEDGER Synthetic Wetland Reference Fixture</td><td>FIELDLEDGER Project</td><td>MIT</td><td>2026-11-20</td></tr>
+</tbody></table></div>
+</section>
+<section class="card"><h2>3. Validation &amp; Survey Statistics</h2>
+<div class="grid">
+<div class="kpi"><div class="lbl">Validation Errors</div><div class="val">0</div></div>
+<div class="kpi"><div class="lbl">Sites (Imp / Ctrl)</div><div class="val">4 (2/2)</div></div>
+<div class="kpi"><div class="lbl">Surveys (Transition Excl)</div><div class="val">8 (0)</div></div>
+<div class="kpi"><div class="lbl">Observations (Explicit Zero)</div><div class="val">8 (0)</div></div>
+</div></section>
+<section class="card"><h2>4. BACI Results &amp; Statistical Uncertainty</h2>
+<div class="tbl-wrap"><table><thead><tr>
+<th>Species</th><th>Method</th><th class="num">Imp Sites</th><th class="num">Ctrl Sites</th><th class="num">Imp PRE</th><th class="num">Imp POST</th><th class="num">Ctrl PRE</th><th class="num">Ctrl POST</th><th class="num">Imp Chg</th><th class="num">Ctrl Chg</th><th class="num">BACI Est</th><th class="num">Coverage</th><th class="num">Missing</th><th>95% Bootstrap CI</th><th>LOSO Sensitivity</th>
+</tr></thead><tbody>
+<tr><td><code>SP001</code></td><td>point_count</td><td class="num">2</td><td class="num">2</td>
+<td class="num">11.000000</td><td class="num">19.000000</td><td class="num">10.000000</td><td class="num">12.000000</td><td class="num">8.000000</td><td class="num">2.000000</td><td class="num"><strong>6.000000</strong></td>
+<td class="num">100.00%</td><td class="num">0</td><td><span class="badge b-warn">WITHHELD</span></td><td>[6.000000, 6.000000] (infl: <code>IMP01</code>)</td></tr>
+</tbody></table></div>
+<h3>BACI Point Estimates (detections / observer-hour)</h3>
+<svg width="780" height="90" viewBox="0 0 780 90" role="img" aria-label="BACI estimates bar chart" style="max-width:100%;height:auto;background:#fcfdff;border:1px solid #d8e0e8;border-radius:8px;">
+  <line x1="400" y1="18" x2="400" y2="90" stroke="#526071" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="400" y="13" text-anchor="middle" font-size="11" fill="#526071">0 (No differential change)</text>
+  <text x="12" y="40" font-size="12" fill="#1b2430">SP001</text>
+  <rect x="400" y="26" width="240" height="20" rx="3" fill="#1b5e4a"/>
+  <text x="646" y="40" font-size="11" font-weight="600" fill="#1b2430">+6.000000</text>
+</svg></section>
+<section class="card"><h2>5. Site-Level Summaries</h2>
+<div class="tbl-wrap"><table><thead><tr>
+<th>Species</th><th>Method</th><th>Site</th><th>Role</th><th class="num">PRE (Obs/Surv)</th><th class="num">POST (Obs/Surv)</th><th class="num">Explicit Zero</th><th class="num">Missing</th><th class="num">PRE Mean</th><th class="num">POST Mean</th><th class="num">Site Change</th><th>Status</th>
+</tr></thead><tbody>
+<tr><td><code>SP001</code></td><td>point_count</td><td><code>IMP01</code></td><td>IMPACT</td>
+<td class="num">1/1</td><td class="num">1/1</td><td class="num">0</td><td class="num">0</td>
+<td class="num">10.000000</td><td class="num">18.000000</td><td class="num">8.000000</td><td><code>COMPLETE</code></td></tr>
+<tr><td><code>SP001</code></td><td>point_count</td><td><code>IMP02</code></td><td>IMPACT</td>
+<td class="num">1/1</td><td class="num">1/1</td><td class="num">0</td><td class="num">0</td>
+<td class="num">12.000000</td><td class="num">20.000000</td><td class="num">8.000000</td><td><code>COMPLETE</code></td></tr>
+<tr><td><code>SP001</code></td><td>point_count</td><td><code>CTRL01</code></td><td>CONTROL</td>
+<td class="num">1/1</td><td class="num">1/1</td><td class="num">0</td><td class="num">0</td>
+<td class="num">11.000000</td><td class="num">13.000000</td><td class="num">2.000000</td><td><code>COMPLETE</code></td></tr>
+<tr><td><code>SP001</code></td><td>point_count</td><td><code>CTRL02</code></td><td>CONTROL</td>
+<td class="num">1/1</td><td class="num">1/1</td><td class="num">0</td><td class="num">0</td>
+<td class="num">9.000000</td><td class="num">11.000000</td><td class="num">2.000000</td><td><code>COMPLETE</code></td></tr>
+</tbody></table></div></section>
+<section class="card"><h2>6. Warnings, Limitations &amp; Reproducibility</h2>
+<h3>Warnings</h3><ul>
+<li><strong><code>SMALL_SAMPLE_CI_WITHHELD</code></strong>: 95% site-cluster bootstrap CI withheld for SP001 (point_count): fewer than 5 complete independent sites in at least one group</li>
+</ul>
+<div class="callout"><strong>Scientific Limitations (v1.0.0):</strong><ul>
+<li>Reports effort-standardised observation rates (<code>detections_per_hour</code>), NOT true ecological abundance and NOT detection-probability-corrected occupancy.</li>
+<li>Missing observation rows are preserved as missingness and are NEVER silently treated as zero counts.</li>
+<li>BACI estimates alone do NOT establish causal proof; causal attribution depends on control comparability, parallel trends, and absence of differential confounding.</li>
+<li>Site-cluster bootstrap 95% intervals are withheld when fewer than 5 complete independent sites exist in either group; p-values are never manufactured.</li>
+</ul></div>
+<p><strong>Reproducibility:</strong> Deterministic Park-Miller LCG seed <code>20261120</code>, bootstrap iterations <code>2000</code>, receipt <code>research-receipt.json</code>, append-only ledger <code>evidence-ledger.csv</code>.</p>
+</section>
+<footer>Self-contained offline report generated by FIELDLEDGER v1.0.0 (GnuCOBOL 3.2.0). Zero external scripts or CDNs.</footer>
+</div></body></html>

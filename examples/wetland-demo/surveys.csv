@@ -1,0 +1,9 @@
+survey_id,site_id,survey_date,survey_minutes,method,observer_id,source_id
+SRV001,IMP01,2024-06-15,60,point_count,OBS-A,SRC001
+SRV002,IMP01,2025-06-15,60,point_count,OBS-A,SRC001
+SRV003,IMP02,2024-06-16,60,point_count,OBS-B,SRC001
+SRV004,IMP02,2025-06-16,60,point_count,OBS-B,SRC001
+SRV005,CTRL01,2024-06-17,60,point_count,OBS-A,SRC001
+SRV006,CTRL01,2025-06-17,60,point_count,OBS-A,SRC001
+SRV007,CTRL02,2024-06-18,60,point_count,OBS-B,SRC001
+SRV008,CTRL02,2025-06-18,60,point_count,OBS-B,SRC001

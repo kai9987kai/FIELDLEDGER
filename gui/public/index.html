@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try {
+      const saved = localStorage.getItem('color-scheme');
+      if (saved === 'light' || saved === 'dark') {
+        document.querySelector('meta[name="color-scheme"]').content = saved;
+      }
+    } catch {}
+  </script>
+  <title>FIELDLEDGER — Ecological Evidence &amp; BACI Workbench</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <rect x="2" y="2" width="22" height="22" rx="5" stroke="currentColor" stroke-width="2"/>
+            <path d="M6 17L10.5 11.5L14.5 14L20 7.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="20" cy="7.5" r="2" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <h1>FIELDLEDGER</h1>
+          <p class="subtitle">Ecological Evidence, Intervention &amp; Accountability Workbench</p>
+        </div>
+      </div>
+
+      <div class="topbar-meta">
+        <span id="engine-badge" class="pill pill-neutral">COBOL Engine: loading…</span>
+        <span id="manifest-badge" class="pill pill-neutral">Manifest: —</span>
+        <button type="button" class="btn btn-secondary btn-sm" command="show-modal" commandfor="init-dialog" data-open-dialog="init-dialog">+ New Study</button>
+        <a id="open-raw-report" class="btn btn-secondary btn-sm" href="/api/raw-report?out=output/wetland-demo" target="_blank" rel="noopener">COBOL HTML Report ↗</a>
+        <button type="button" class="btn btn-ghost btn-sm" command="show-modal" commandfor="settings-dialog" data-open-dialog="settings-dialog" aria-label="Workbench settings">Settings</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="control-rail" aria-label="Experiment runner controls">
+        <section class="panel-card">
+          <h2 class="section-heading">1. Study &amp; Dataset</h2>
+          <div class="field">
+            <label for="study-preset">Workspace Studies &amp; Fixtures</label>
+            <select id="study-preset"></select>
+          </div>
+          <div class="field">
+            <label for="study-path">Study Directory Path</label>
+            <input id="study-path" type="text" value="examples/wetland-demo" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="out-path">Output Directory Path</label>
+            <input id="out-path" type="text" value="output/wetland-demo" autocomplete="off" spellcheck="false">
+          </div>
+          <p id="study-blurb" class="muted-note">Select a study or enter any local directory containing the five FIELDLEDGER CSV schemas.</p>
+        </section>
+
+        <section class="panel-card">
+          <h2 class="section-heading">2. BACI &amp; Bootstrap Parameters</h2>
+          <div class="field-row">
+            <div class="field">
+              <label for="seed-input">PRNG Seed</label>
+              <input id="seed-input" type="number" min="1" max="2147483646" step="1" value="20261120">
+            </div>
+            <div class="field">
+              <label for="bootstrap-input">Bootstrap Iters</label>
+              <input id="bootstrap-input" type="number" min="100" max="100000" step="100" value="2000">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="species-filter">Species Filter (optional)</label>
+              <input id="species-filter" type="text" placeholder="All species" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="method-filter">Method Filter (optional)</label>
+              <input id="method-filter" type="text" placeholder="Auto / Stratified" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="action-stack">
+            <button type="button" id="btn-analyze" class="btn btn-primary">Run BACI Analysis (COBOL)</button>
+            <div class="action-grid">
+              <button type="button" id="btn-validate" class="btn btn-secondary">Validate Only</button>
+              <button type="button" id="btn-report" class="btn btn-secondary">Regen Report</button>
+              <button type="button" id="btn-manifest" class="btn btn-secondary">Gen SHA-256</button>
+              <button type="button" id="btn-verify" class="btn btn-secondary">Verify Hash</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card console-card">
+          <div class="console-header">
+            <h2 class="section-heading">COBOL Execution Console</h2>
+            <span id="exec-status" class="pill pill-neutral">Idle</span>
+          </div>
+          <code id="exec-cmd" class="cmd-preview">fieldledger analyze baci --study examples/wetland-demo --out output/wetland-demo</code>
+          <pre id="exec-log" class="exec-log" aria-live="polite">Ready. All scientific computation executes natively inside GnuCOBOL (build/fieldledger.exe).</pre>
+        </section>
+      </aside>
+
+      <main class="main-canvas">
+        <div id="status-banner" class="banner banner-info" role="status" aria-live="polite">
+          Loaded verified COBOL outputs. All statistics below are read directly from FIELDLEDGER CSV and JSON receipts — zero browser-side scientific recalculation.
+        </div>
+
+        <section class="kpi-strip" aria-label="Study summary metrics">
+          <article class="kpi-card">
+            <span class="kpi-label">Study ID</span>
+            <strong id="kpi-study" class="kpi-value mono">—</strong>
+            <span id="kpi-method" class="kpi-sub">Method: —</span>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">Sites (Imp / Ctrl)</span>
+            <strong id="kpi-sites" class="kpi-value">—</strong>
+            <span id="kpi-surveys" class="kpi-sub">Surveys: —</span>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">Observations</span>
+            <strong id="kpi-obs" class="kpi-value">—</strong>
+            <span id="kpi-zero-miss" class="kpi-sub">Explicit 0: — · Missing: —</span>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">Headline BACI</span>
+            <strong id="kpi-baci" class="kpi-value">—</strong>
+            <span id="kpi-ci" class="kpi-sub">95% Site CI: —</span>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">Validation Gate</span>
+            <strong id="kpi-val" class="kpi-value">—</strong>
+            <span id="kpi-warn" class="kpi-sub">Warnings: —</span>
+          </article>
+        </section>
+
+        <div class="tabs-shell">
+          <div class="tablist scroller" focusgroup="tablist nomemory" role="tablist" aria-label="FIELDLEDGER analysis views">
+            <button type="button" id="tab-baci" role="tab" aria-selected="true" focusgroupstart data-panel="panel-baci">BACI &amp; Visualisations</button>
+            <button type="button" id="tab-sites" role="tab" aria-selected="false" data-panel="panel-sites">Site Summaries</button>
+            <button type="button" id="tab-validation" role="tab" aria-selected="false" data-panel="panel-validation">Validation &amp; Quality</button>
+            <button type="button" id="tab-provenance" role="tab" aria-selected="false" data-panel="panel-provenance">Provenance &amp; Ledger</button>
+            <button type="button" id="tab-inputs" role="tab" aria-selected="false" data-panel="panel-inputs">Raw Input Inspector</button>
+          </div>
+
+          <div class="tab-panels">
+            <!-- Panel 1: BACI & Visualisations -->
+            <div id="panel-baci" role="tabpanel" aria-labelledby="tab-baci" tabindex="0">
+              <div class="panel-body">
+                <div class="charts-grid">
+                  <section class="chart-card">
+                    <div class="card-head">
+                      <h3>BACI Effect, 95% Site Bootstrap CI &amp; LOSO Range</h3>
+                      <span class="muted-tag">detections / observer-hour</span>
+                    </div>
+                    <div id="baci-forest-chart" class="svg-host"></div>
+                  </section>
+
+                  <section class="chart-card">
+                    <div class="card-head">
+                      <h3>Site-Level PRE → POST Trajectories</h3>
+                      <div class="chart-controls">
+                        <label for="slope-stratum" class="sr-only">Stratum for slope chart</label>
+                        <select id="slope-stratum" class="select-sm"></select>
+                      </div>
+                    </div>
+                    <div id="site-slope-chart" class="svg-host"></div>
+                  </section>
+                </div>
+
+                <section class="table-section">
+                  <h3 id="baci-table-title">Species-Method BACI Estimates (<code>baci-results.csv</code>)</h3>
+                  <div tabindex="0" role="region" aria-labelledby="baci-table-title" class="table-wrapper">
+                    <table id="baci-table">
+                      <caption class="sr-only">Before-After-Control-Impact estimates computed by FIELDLEDGER COBOL engine</caption>
+                      <thead>
+                        <tr>
+                          <th>Species</th>
+                          <th>Method</th>
+                          <th class="num">Sites (I/C)</th>
+                          <th class="num">Imp PRE → POST</th>
+                          <th class="num">Ctrl PRE → POST</th>
+                          <th class="num">Imp Chg</th>
+                          <th class="num">Ctrl Chg</th>
+                          <th class="num">BACI Est</th>
+                          <th class="num">Coverage</th>
+                          <th class="num">Missing</th>
+                          <th>95% Site Bootstrap CI</th>
+                          <th>LOSO Sensitivity</th>
+                          <th>Warnings</th>
+                        </tr>
+                      </thead>
+                      <tbody id="baci-tbody"></tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <aside class="limitations-box" aria-label="Scientific limitations">
+                  <h3>Scientific Accountability &amp; Version 1 Boundaries</h3>
+                  <ul>
+                    <li><strong>Observation Rate ≠ True Abundance:</strong> Model <code>EFFORT_RATE_V1</code> measures detections per observer-hour without imperfect-detection probability correction (reserved for v2 occupancy modelling).</li>
+                    <li><strong>Missing ≠ Zero:</strong> Absent species rows remain missingness and are never imputed as zero counts; explicit zeros require <code>NOT_DETECTED</code> with <code>count = 0</code>.</li>
+                    <li><strong>Association ≠ Causal Proof:</strong> BACI estimates require defensible control comparability, parallel-trends assumptions, and absence of unmeasured differential confounding.</li>
+                    <li><strong>Small-Sample Restraint:</strong> 95% site-cluster bootstrap intervals are intentionally withheld when fewer than 5 complete independent sites exist in either group; p-values are never manufactured.</li>
+                  </ul>
+                </aside>
+              </div>
+            </div>
+
+            <!-- Panel 2: Site Summaries -->
+            <div id="panel-sites" role="tabpanel" aria-labelledby="tab-sites" hidden="until-found">
+              <div class="panel-body">
+                <div class="toolbar-inline">
+                  <h3 id="sites-table-title">Site-Level Period Summaries (<code>site-summaries.csv</code>)</h3>
+                  <div class="filter-group">
+                    <label for="site-role-filter">Role:</label>
+                    <select id="site-role-filter" class="select-sm">
+                      <option value="ALL">All Roles</option>
+                      <option value="IMPACT">IMPACT</option>
+                      <option value="CONTROL">CONTROL</option>
+                    </select>
+                  </div>
+                </div>
+                <div tabindex="0" role="region" aria-labelledby="sites-table-title" class="table-wrapper">
+                  <table id="sites-table">
+                    <caption class="sr-only">Per-site PRE and POST observation rates, missingness, coverage, and exclusion reasons</caption>
+                    <thead>
+                      <tr>
+                        <th>Site</th>
+                        <th>Role</th>
+                        <th>Species</th>
+                        <th>Method</th>
+                        <th class="num">PRE (Obs/Surv)</th>
+                        <th class="num">POST (Obs/Surv)</th>
+                        <th class="num">Explicit 0</th>
+                        <th class="num">Missing</th>
+                        <th class="num">PRE Mean</th>
+                        <th class="num">POST Mean</th>
+                        <th class="num">Site Change</th>
+                        <th class="num">Coverage %</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sites-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel 3: Validation & Quality -->
+            <div id="panel-validation" role="tabpanel" aria-labelledby="tab-validation" hidden="until-found">
+              <div class="panel-body">
+                <section class="table-section">
+                  <h3 id="val-table-title">Validation Diagnostics (<code>validation-report.csv</code>)</h3>
+                  <div tabindex="0" role="region" aria-labelledby="val-table-title" class="table-wrapper">
+                    <table id="val-table">
+                      <caption class="sr-only">Validation errors, warnings, and informational messages</caption>
+                      <thead>
+                        <tr>
+                          <th>Severity</th>
+                          <th>Code</th>
+                          <th>File</th>
+                          <th class="num">Row</th>
+                          <th>Field</th>
+                          <th>Explanation</th>
+                        </tr>
+                      </thead>
+                      <tbody id="val-tbody"></tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section class="table-section">
+                  <h3 id="dq-table-title">Data Quality &amp; Missingness Ledger (<code>data-quality.csv</code>)</h3>
+                  <div tabindex="0" role="region" aria-labelledby="dq-table-title" class="table-wrapper">
+                    <table id="dq-table">
+                      <caption class="sr-only">Dataset quality, rejection, duplicate, transition, and coverage metrics</caption>
+                      <thead>
+                        <tr>
+                          <th>Metric</th>
+                          <th>Category</th>
+                          <th class="num">Value</th>
+                          <th>Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody id="dq-tbody"></tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!-- Panel 4: Provenance & Ledger -->
+            <div id="panel-provenance" role="tabpanel" aria-labelledby="tab-provenance" hidden="until-found">
+              <div class="panel-body">
+                <div class="two-col">
+                  <section class="sub-card">
+                    <div class="card-head">
+                      <h3>SHA-256 Input Manifest (<code>manifest.sha256</code>)</h3>
+                      <span id="manifest-detail-badge" class="pill pill-neutral">—</span>
+                    </div>
+                    <pre id="manifest-pre" class="code-box">No manifest.sha256 found in study directory. Click "Gen SHA-256" to compute digests via platform SHA-256 tools.</pre>
+                  </section>
+
+                  <section class="sub-card">
+                    <div class="card-head">
+                      <h3>Research Receipt (<code>research-receipt.json</code>)</h3>
+                      <button type="button" id="btn-copy-receipt" class="btn btn-secondary btn-sm">Copy JSON</button>
+                    </div>
+                    <pre id="receipt-pre" class="code-box">No research-receipt.json present for the current output directory.</pre>
+                  </section>
+                </div>
+
+                <section class="table-section">
+                  <h3 id="sources-table-title">Source Provenance (<code>sources.csv</code> — URLs not externally verified)</h3>
+                  <div tabindex="0" role="region" aria-labelledby="sources-table-title" class="table-wrapper">
+                    <table id="sources-table">
+                      <caption class="sr-only">Study data sources and citations</caption>
+                      <thead>
+                        <tr>
+                          <th>Source ID</th>
+                          <th>Type</th>
+                          <th>Title</th>
+                          <th>Organisation</th>
+                          <th>Licence</th>
+                          <th>Accessed</th>
+                        </tr>
+                      </thead>
+                      <tbody id="sources-tbody"></tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section class="table-section">
+                  <h3 id="ledger-table-title">Append-Only Evidence Ledger (<code>evidence-ledger.csv</code>)</h3>
+                  <div tabindex="0" role="region" aria-labelledby="ledger-table-title" class="table-wrapper">
+                    <table id="ledger-table">
+                      <caption class="sr-only">Historical append-only run audit records</caption>
+                      <thead>
+                        <tr>
+                          <th>Run ID</th>
+                          <th>Timestamp</th>
+                          <th>Command</th>
+                          <th>Study</th>
+                          <th>Outcome</th>
+                          <th>Method</th>
+                          <th class="num">Seed</th>
+                          <th class="num">Boot</th>
+                          <th class="num">Obs</th>
+                          <th class="num">Err / Warn</th>
+                          <th>Manifest</th>
+                        </tr>
+                      </thead>
+                      <tbody id="ledger-tbody"></tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!-- Panel 5: Raw Input Inspector -->
+            <div id="panel-inputs" role="tabpanel" aria-labelledby="tab-inputs" hidden="until-found">
+              <div class="panel-body">
+                <div class="toolbar-inline">
+                  <h3 id="input-table-title">Read-Only Study Input Inspector</h3>
+                  <div class="filter-group">
+                    <label for="input-file-select">Schema File:</label>
+                    <select id="input-file-select" class="select-sm">
+                      <option value="study.csv">study.csv</option>
+                      <option value="sources.csv">sources.csv</option>
+                      <option value="sites.csv">sites.csv</option>
+                      <option value="surveys.csv">surveys.csv</option>
+                      <option value="observations.csv">observations.csv</option>
+                    </select>
+                    <button type="button" id="btn-reload-inputs" class="btn btn-secondary btn-sm">Reload</button>
+                  </div>
+                </div>
+                <p id="input-file-meta" class="muted-note">Source CSV files are strictly read-only during analysis.</p>
+                <div tabindex="0" role="region" aria-labelledby="input-table-title" class="table-wrapper">
+                  <table id="input-table">
+                    <caption class="sr-only">Selected raw CSV study input table</caption>
+                    <thead id="input-thead"></thead>
+                    <tbody id="input-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Native Modal Dialog: Initialise New Study -->
+  <dialog id="init-dialog" closedby="any" aria-labelledby="init-title">
+    <div class="dialog-shell">
+      <h2 id="init-title">Initialise New FIELDLEDGER Study</h2>
+      <p class="muted-note">Invokes <code>fieldledger init --study &lt;PATH&gt;</code> to create the five documented CSV schema templates without overwriting existing archives.</p>
+      <form id="init-form" method="dialog">
+        <div class="field">
+          <label for="init-study-path">New Study Directory Path</label>
+          <input id="init-study-path" type="text" value="output/new-study" required autofocus autocomplete="off">
+        </div>
+        <div class="dialog-actions">
+          <button type="submit" value="cancel" class="btn btn-secondary" formnovalidate>Cancel</button>
+          <button type="submit" value="create" class="btn btn-primary">Initialise Study</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Native Modal Dialog: Workbench Settings (3-state Color Scheme Control) -->
+  <dialog id="settings-dialog" closedby="any" aria-labelledby="settings-title">
+    <div class="dialog-shell">
+      <h2 id="settings-title">Workbench Settings</h2>
+      <form id="settings-form" method="dialog">
+        <fieldset class="theme-fieldset">
+          <legend>Color Scheme</legend>
+          <label class="radio-option">
+            <input type="radio" name="theme-mode" value="system" autofocus>
+            <span id="theme-system-label">System default</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="theme-mode" value="light">
+            <span>Light</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="theme-mode" value="dark">
+            <span>Dark</span>
+          </label>
+        </fieldset>
+        <p class="muted-note">Uses native CSS <code>color-scheme</code> and <code>light-dark()</code> tokens with zero remote assets.</p>
+        <div class="dialog-actions">
+          <button type="submit" value="close" class="btn btn-primary">Done</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

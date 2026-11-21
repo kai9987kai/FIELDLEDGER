@@ -1,0 +1,4 @@
+observation_id,survey_id,species_code,count,observation_status
+OBS01,S1,SP001,10,DETECTED
+OBS01,S2,SP001,12,DETECTED
+OBS02,S1,SP001,14,DETECTED

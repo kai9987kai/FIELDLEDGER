@@ -1,0 +1,5 @@
+site_id,site_role,reference_date,area_ha,habitat_type,region_code
+IMP01,IMPACT,2025-01-01,45.50,freshwater_marsh,REG-NORTH
+IMP02,IMPACT,2025-01-01,52.00,freshwater_marsh,REG-NORTH
+CTRL01,CONTROL,2025-01-01,48.25,freshwater_marsh,REG-NORTH
+CTRL02,CONTROL,2025-01-01,46.75,freshwater_marsh,REG-NORTH

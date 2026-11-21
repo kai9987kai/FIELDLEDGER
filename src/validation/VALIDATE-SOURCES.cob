@@ -1,0 +1,294 @@
+>>SOURCE FORMAT FREE
+*> =====================================================================
+*> FIELDLEDGER - VALIDATE-SOURCES.cob
+*> Loads and validates sources.csv (schema, UTF-8, RFC 4180 CSV,
+*> required provenance fields, ISO 8601 accessed_date, capacity limits).
+*> =====================================================================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. VALIDATE-SOURCES.
+
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+    SELECT F-SOURCES ASSIGN TO DYNAMIC WS-FILE-PATH
+        ORGANIZATION IS LINE SEQUENTIAL
+        FILE STATUS IS WS-FS.
+
+DATA DIVISION.
+FILE SECTION.
+FD F-SOURCES.
+01 F-SRC-REC                PIC X(4096).
+
+WORKING-STORAGE SECTION.
+COPY "LIMITS.cpy".
+COPY "RUN-CONFIG.cpy".
+COPY "SOURCE-RECORD.cpy".
+COPY "CSV-WORK.cpy".
+COPY "UTILS-IFACE.cpy".
+
+01 WS-FILE-PATH             PIC X(512).
+01 WS-FS                    PIC XX.
+01 WS-EOF                   PIC X(1).
+01 WS-ROW-NUM               PIC 9(9) COMP-5.
+01 WS-ROW-OK                PIC X(1).
+01 WS-MISS-FIELD            PIC X(40).
+01 WS-LIMIT-HIT             PIC X(1).
+
+PROCEDURE DIVISION.
+MAIN-VAL-SOURCES.
+    MOVE 0   TO SRC-COUNT
+    MOVE 0   TO SRC-RAW-ROWS
+    MOVE 0   TO SRC-REJECTED-ROWS
+    MOVE 0   TO SRC-DUP-COUNT
+    MOVE "N" TO SRC-INDEX-BUILT
+    MOVE "N" TO WS-LIMIT-HIT
+
+    INITIALIZE CFG-REQ
+    MOVE "JOIN-PATH"    TO CREQ-OP
+    MOVE CFG-STUDY-PATH TO CREQ-PATH-A
+    MOVE "sources.csv"  TO CREQ-PATH-B
+    CALL "CONFIGURATION" USING CFG-REQ
+    MOVE CREQ-PATH-OUT TO WS-FILE-PATH
+
+    OPEN INPUT F-SOURCES
+    IF WS-FS NOT = "00"
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "FILE_MISSING" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE 0 TO EREQ-ROW
+        MOVE "file" TO EREQ-FIELD
+        STRING "Cannot open required file sources.csv (file status " WS-FS ")"
+               DELIMITED BY SIZE INTO EREQ-MESSAGE
+        END-STRING
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        GOBACK
+    END-IF
+
+    MOVE "N" TO WS-EOF
+    MOVE 0   TO WS-ROW-NUM
+
+    PERFORM UNTIL WS-EOF = "Y" OR WS-LIMIT-HIT = "Y"
+        MOVE SPACES TO F-SRC-REC
+        READ F-SOURCES
+            AT END
+                MOVE "Y" TO WS-EOF
+            NOT AT END
+                ADD 1 TO WS-ROW-NUM
+                PERFORM PROCESS-LINE
+        END-READ
+    END-PERFORM
+
+    CLOSE F-SOURCES
+
+    IF WS-ROW-NUM = 0
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "EMPTY_FILE" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE 0 TO EREQ-ROW
+        MOVE "file" TO EREQ-FIELD
+        MOVE "Required file sources.csv is empty" TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    END-IF
+    GOBACK.
+
+PROCESS-LINE.
+    INITIALIZE NORM-REQ
+    MOVE F-SRC-REC TO RN-BUF
+    IF WS-ROW-NUM = 1
+        MOVE "Y" TO RN-IS-FIRST-LINE
+    ELSE
+        MOVE "N" TO RN-IS-FIRST-LINE
+    END-IF
+    CALL "RECORD-NORMALISER" USING NORM-REQ
+
+    IF RN-STATUS = 01
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "INFO" TO EREQ-SEVERITY
+        MOVE "UTF8_BOM" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "encoding" TO EREQ-FIELD
+        MOVE RN-ERR-MSG TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    ELSE
+        IF RN-STATUS >= 02
+            INITIALIZE ERR-REQ
+            MOVE "ADD" TO EREQ-OP
+            MOVE "ERROR" TO EREQ-SEVERITY
+            MOVE "ENCODING_ERROR" TO EREQ-CODE
+            MOVE "sources.csv" TO EREQ-FILE
+            MOVE WS-ROW-NUM TO EREQ-ROW
+            MOVE "encoding" TO EREQ-FIELD
+            MOVE RN-ERR-MSG TO EREQ-MESSAGE
+            CALL "ERROR-HANDLING" USING ERR-REQ
+            IF WS-ROW-NUM > 1
+                ADD 1 TO SRC-RAW-ROWS
+                ADD 1 TO SRC-REJECTED-ROWS
+            END-IF
+            EXIT PARAGRAPH
+        END-IF
+    END-IF
+
+    IF RN-LEN = 0
+        EXIT PARAGRAPH
+    END-IF
+
+    INITIALIZE CSV-REQ
+    MOVE RN-BUF TO CSV-LINE
+    MOVE RN-LEN TO CSV-LINE-LEN
+    CALL "CSV-READER" USING CSV-REQ
+    IF NOT CSV-OK
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "CSV_MALFORMED" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "record" TO EREQ-FIELD
+        MOVE CSV-ERR-MSG TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        IF WS-ROW-NUM > 1
+            ADD 1 TO SRC-RAW-ROWS
+            ADD 1 TO SRC-REJECTED-ROWS
+        END-IF
+        EXIT PARAGRAPH
+    END-IF
+
+    IF WS-ROW-NUM = 1
+        PERFORM CHECK-HEADER
+        EXIT PARAGRAPH
+    END-IF
+
+    ADD 1 TO SRC-RAW-ROWS
+
+    IF SRC-COUNT >= FL-MAX-SOURCES
+        MOVE "Y" TO WS-LIMIT-HIT
+        MOVE FL-EXIT-LIMIT-ERR TO CFG-EXIT-CODE
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "RESOURCE_LIMIT" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "capacity" TO EREQ-FIELD
+        MOVE "Source record count exceeds documented v1.0.0 limit (10,000 sources)"
+            TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        EXIT PARAGRAPH
+    END-IF
+
+    IF CSV-FIELD-CNT NOT = 8
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "COLUMN_COUNT" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE WS-ROW-NUM TO EREQ-ROW
+        MOVE "record" TO EREQ-FIELD
+        MOVE "Expected exactly 8 columns in sources.csv" TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+        ADD 1 TO SRC-REJECTED-ROWS
+        EXIT PARAGRAPH
+    END-IF
+
+    MOVE "Y" TO WS-ROW-OK
+
+    IF FUNCTION TRIM(CSV-F-VAL(1)) = SPACES
+        MOVE "source_id" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+    IF FUNCTION TRIM(CSV-F-VAL(2)) = SPACES
+        MOVE "source_type" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+    IF FUNCTION TRIM(CSV-F-VAL(3)) = SPACES
+        MOVE "source_title" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+    IF FUNCTION TRIM(CSV-F-VAL(4)) = SPACES
+        MOVE "organisation" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    END-IF
+    IF FUNCTION TRIM(CSV-F-VAL(8)) = SPACES
+        MOVE "accessed_date" TO WS-MISS-FIELD
+        PERFORM ADD-MISSING-REQ
+    ELSE
+        INITIALIZE DATE-REQ
+        MOVE "VALIDATE" TO DREQ-OP
+        MOVE FUNCTION TRIM(CSV-F-VAL(8)) TO DREQ-DATE-A
+        CALL "DATE-UTILS" USING DATE-REQ
+        IF DREQ-VALID NOT = "Y"
+            MOVE "N" TO WS-ROW-OK
+            INITIALIZE ERR-REQ
+            MOVE "ADD" TO EREQ-OP
+            MOVE "ERROR" TO EREQ-SEVERITY
+            MOVE "INVALID_DATE" TO EREQ-CODE
+            MOVE "sources.csv" TO EREQ-FILE
+            MOVE WS-ROW-NUM TO EREQ-ROW
+            MOVE "accessed_date" TO EREQ-FIELD
+            MOVE DREQ-ERR-MSG TO EREQ-MESSAGE
+            CALL "ERROR-HANDLING" USING ERR-REQ
+        END-IF
+    END-IF
+
+    IF WS-ROW-OK = "Y"
+        ADD 1 TO SRC-COUNT
+        MOVE FUNCTION TRIM(CSV-F-VAL(1)) TO SRC-ID(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(2)) TO SRC-TYPE(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(3)) TO SRC-TITLE(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(4)) TO SRC-ORG(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(5)) TO SRC-CITATION(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(6)) TO SRC-URL(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(7)) TO SRC-LICENCE(SRC-COUNT)
+        MOVE FUNCTION TRIM(CSV-F-VAL(8)) TO SRC-ACCESSED-DATE(SRC-COUNT)
+        MOVE WS-ROW-NUM                  TO SRC-ROW-NUM(SRC-COUNT)
+        MOVE "Y"                         TO SRC-VALID(SRC-COUNT)
+    ELSE
+        ADD 1 TO SRC-REJECTED-ROWS
+    END-IF
+    .
+
+CHECK-HEADER.
+    IF CSV-FIELD-CNT = 8
+        AND FUNCTION TRIM(CSV-F-VAL(1)) = "source_id"
+        AND FUNCTION TRIM(CSV-F-VAL(2)) = "source_type"
+        AND FUNCTION TRIM(CSV-F-VAL(3)) = "source_title"
+        AND FUNCTION TRIM(CSV-F-VAL(4)) = "organisation"
+        AND FUNCTION TRIM(CSV-F-VAL(5)) = "citation"
+        AND FUNCTION TRIM(CSV-F-VAL(6)) = "source_url"
+        AND FUNCTION TRIM(CSV-F-VAL(7)) = "licence"
+        AND FUNCTION TRIM(CSV-F-VAL(8)) = "accessed_date"
+        CONTINUE
+    ELSE
+        INITIALIZE ERR-REQ
+        MOVE "ADD" TO EREQ-OP
+        MOVE "ERROR" TO EREQ-SEVERITY
+        MOVE "HEADER_MISMATCH" TO EREQ-CODE
+        MOVE "sources.csv" TO EREQ-FILE
+        MOVE 1 TO EREQ-ROW
+        MOVE "header" TO EREQ-FIELD
+        MOVE "Expected header: source_id,source_type,source_title,organisation,citation,source_url,licence,accessed_date"
+            TO EREQ-MESSAGE
+        CALL "ERROR-HANDLING" USING ERR-REQ
+    END-IF
+    .
+
+ADD-MISSING-REQ.
+    MOVE "N" TO WS-ROW-OK
+    INITIALIZE ERR-REQ
+    MOVE "ADD" TO EREQ-OP
+    MOVE "ERROR" TO EREQ-SEVERITY
+    MOVE "MISSING_REQUIRED" TO EREQ-CODE
+    MOVE "sources.csv" TO EREQ-FILE
+    MOVE WS-ROW-NUM TO EREQ-ROW
+    MOVE WS-MISS-FIELD TO EREQ-FIELD
+    STRING "Required field '" FUNCTION TRIM(WS-MISS-FIELD) "' is empty"
+           DELIMITED BY SIZE INTO EREQ-MESSAGE
+    END-STRING
+    CALL "ERROR-HANDLING" USING ERR-REQ
+    .

@@ -1,0 +1,10 @@
+survey_id,site_id,survey_date,survey_minutes,method,observer_id,source_id
+S1,IMP01,2024-06-01,60,point_count,O1,SRC001
+S2,IMP01,2024-06-15,60,point_count,O1,SRC001
+S3,IMP01,2025-06-01,60,point_count,O1,SRC001
+S4,IMP02,2024-06-01,60,point_count,O1,SRC001
+S5,IMP02,2025-06-01,60,point_count,O1,SRC001
+S6,CTRL01,2024-06-01,60,point_count,O1,SRC001
+S7,CTRL01,2025-06-01,60,point_count,O1,SRC001
+S8,CTRL02,2024-06-01,60,point_count,O1,SRC001
+S9,CTRL02,2025-06-01,60,point_count,O1,SRC001

@@ -1,0 +1,2 @@
+observation_id,survey_id,species_code,count,observation_status
+OBS01,GHOST_SURV,SP001,10,DETECTED

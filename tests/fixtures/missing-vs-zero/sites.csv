@@ -1,0 +1,5 @@
+site_id,site_role,reference_date,area_ha,habitat_type,region_code
+IMP01,IMPACT,2025-01-01,40.0,wetland,R1
+IMP02,IMPACT,2025-01-01,42.0,wetland,R1
+CTRL01,CONTROL,2025-01-01,41.0,wetland,R1
+CTRL02,CONTROL,2025-01-01,39.0,wetland,R1

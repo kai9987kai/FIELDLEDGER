@@ -1,0 +1,64 @@
+{
+  "application": "FIELDLEDGER",
+  "version": "1.0.0",
+  "gnucobol_version": "GnuCOBOL 3.2.0",
+  "run_id": "RUN-20261121T120519",
+  "timestamp": "2026-11-21T12:05:19+00:00",
+  "study_id": "study_001",
+  "study_title": "Wetland Restoration Study",
+  "analysis_type": "BACI",
+  "validation_outcome": "PASSED",
+  "analysis_configuration": {
+    "study_path": "examples\\wetland-demo",
+    "out_path": "output\\wetland-demo",
+    "species_filter": null,
+    "active_method": "point_count",
+    "site_weighting": "equal_independent_sites",
+    "missing_as_zero": false,
+    "transition_policy": "excluded_from_primary_pre_post",
+    "observation_model": "EFFORT_RATE_V1",
+    "detection_probability_corrected": false
+  },
+  "bootstrap_configuration": {
+    "prng": "Park-Miller LCG (a=16807, m=2147483647)",
+    "resampling_unit": "independent_site_cluster",
+    "seed": 20261120,
+    "iterations": 2000,
+    "min_complete_sites_per_group_for_ci": 5,
+    "nominal_interval": "95%_percentile_2.5_to_97.5"
+  },
+  "input_manifest": {
+    "status": "PRESENT",
+    "path": "examples\\wetland-demo\\manifest.sha256",
+    "generated_date": "2026-11-20T18:15:39Z"
+  },
+  "record_counts": {
+    "sources_valid": 1,
+    "sites_valid": 4,
+    "sites_impact": 2,
+    "sites_control": 2,
+    "surveys_valid": 8,
+    "observations_valid": 8,
+    "observations_detected": 8,
+    "observations_explicit_zero": 0,
+    "rejected_records": 0,
+    "excluded_transition_surveys": 0,
+    "excluded_transition_observations": 0,
+    "missing_species_survey_cells": 0
+  },
+  "result_files": {
+    "validation_report": "validation-report.csv",
+    "data_quality": "data-quality.csv",
+    "baci_results": "baci-results.csv",
+    "site_summaries": "site-summaries.csv",
+    "evidence_ledger": "evidence-ledger.csv",
+    "markdown_report": "report.md",
+    "html_report": "report.html"
+  },
+  "baci_summary": [
+    {"species_code": "SP001", "method": "point_count", "baci_estimate": 6.000000, "ci_status": "WITHHELD", "ci_95_low": null, "ci_95_high": null}
+  ],
+  "warnings": [
+    {"code": "SMALL_SAMPLE_CI_WITHHELD", "message": "95% site-cluster bootstrap CI withheld for SP001 (point_count): fewer than 5 complete independent sites in at least one group"}
+  ]
+}

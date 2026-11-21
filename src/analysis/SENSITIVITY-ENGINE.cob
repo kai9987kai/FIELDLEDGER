@@ -1,0 +1,102 @@
+>>SOURCE FORMAT FREE
+*> =====================================================================
+*> FIELDLEDGER - SENSITIVITY-ENGINE.cob
+*> Leave-one-site-out (LOSO) sensitivity analysis: quantifies how much
+*> the BACI point estimate shifts when each complete site is omitted in
+*> turn, exposing single-site leverage transparently.
+*> =====================================================================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SENSITIVITY-ENGINE.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+COPY "LIMITS.cpy".
+COPY "BACI-RESULT.cpy".
+COPY "ANALYSIS-WORK.cpy".
+
+01 WS-K                     PIC 9(6) COMP-5.
+01 WS-I                     PIC 9(6) COMP-5.
+01 WS-IMP-SUM               PIC S9(15)V9(6) COMP-3.
+01 WS-CTRL-SUM              PIC S9(15)V9(6) COMP-3.
+01 WS-LOSO-IMP              PIC S9(11)V9(6) COMP-3.
+01 WS-LOSO-CTRL             PIC S9(11)V9(6) COMP-3.
+01 WS-LOSO-BACI             PIC S9(11)V9(6) COMP-3.
+01 WS-MIN-VAL               PIC S9(11)V9(6) COMP-3.
+01 WS-MAX-VAL               PIC S9(11)V9(6) COMP-3.
+01 WS-MAX-DIFF              PIC S9(11)V9(6) COMP-3.
+01 WS-DIFF                  PIC S9(11)V9(6) COMP-3.
+01 WS-INFL-SITE             PIC X(64).
+01 WS-FIRST                 PIC X(1).
+
+PROCEDURE DIVISION.
+MAIN-SENS.
+    MOVE SW-STRATUM-IDX TO WS-K
+
+    IF BR-CALCULABLE(WS-K) NOT = "Y"
+        OR SW-IMP-CNT < 2 OR SW-CTRL-CNT < 2
+        MOVE "INSUFFICIENT" TO BR-LOSO-STATUS(WS-K)
+        MOVE 0 TO BR-LOSO-MIN(WS-K)
+        MOVE 0 TO BR-LOSO-MAX(WS-K)
+        MOVE "NA" TO BR-LOSO-SITE(WS-K)
+        GOBACK
+    END-IF
+
+    MOVE 0 TO WS-IMP-SUM
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > SW-IMP-CNT
+        ADD SWI-CHANGE(WS-I) TO WS-IMP-SUM
+    END-PERFORM
+
+    MOVE 0 TO WS-CTRL-SUM
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > SW-CTRL-CNT
+        ADD SWC-CHANGE(WS-I) TO WS-CTRL-SUM
+    END-PERFORM
+
+    MOVE "Y" TO WS-FIRST
+    MOVE -1  TO WS-MAX-DIFF
+    MOVE SPACES TO WS-INFL-SITE
+
+    *> Omit each impact site in turn
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > SW-IMP-CNT
+        COMPUTE WS-LOSO-IMP ROUNDED =
+            (WS-IMP-SUM - SWI-CHANGE(WS-I)) / (SW-IMP-CNT - 1)
+        COMPUTE WS-LOSO-BACI = WS-LOSO-IMP - BR-CTRL-CHANGE(WS-K)
+        PERFORM UPDATE-LOSO-EXTREMES
+        IF WS-DIFF > WS-MAX-DIFF
+            MOVE WS-DIFF TO WS-MAX-DIFF
+            MOVE SWI-SITE-ID(WS-I) TO WS-INFL-SITE
+        END-IF
+    END-PERFORM
+
+    *> Omit each control site in turn
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > SW-CTRL-CNT
+        COMPUTE WS-LOSO-CTRL ROUNDED =
+            (WS-CTRL-SUM - SWC-CHANGE(WS-I)) / (SW-CTRL-CNT - 1)
+        COMPUTE WS-LOSO-BACI = BR-IMP-CHANGE(WS-K) - WS-LOSO-CTRL
+        PERFORM UPDATE-LOSO-EXTREMES
+        IF WS-DIFF > WS-MAX-DIFF
+            MOVE WS-DIFF TO WS-MAX-DIFF
+            MOVE SWC-SITE-ID(WS-I) TO WS-INFL-SITE
+        END-IF
+    END-PERFORM
+
+    MOVE "COMPUTED"   TO BR-LOSO-STATUS(WS-K)
+    MOVE WS-MIN-VAL   TO BR-LOSO-MIN(WS-K)
+    MOVE WS-MAX-VAL   TO BR-LOSO-MAX(WS-K)
+    MOVE WS-INFL-SITE TO BR-LOSO-SITE(WS-K)
+    GOBACK.
+
+UPDATE-LOSO-EXTREMES.
+    IF WS-FIRST = "Y"
+        MOVE WS-LOSO-BACI TO WS-MIN-VAL
+        MOVE WS-LOSO-BACI TO WS-MAX-VAL
+        MOVE "N" TO WS-FIRST
+    ELSE
+        IF WS-LOSO-BACI < WS-MIN-VAL
+            MOVE WS-LOSO-BACI TO WS-MIN-VAL
+        END-IF
+        IF WS-LOSO-BACI > WS-MAX-VAL
+            MOVE WS-LOSO-BACI TO WS-MAX-VAL
+        END-IF
+    END-IF
+    COMPUTE WS-DIFF = FUNCTION ABS(WS-LOSO-BACI - BR-BACI-EST(WS-K))
+    .

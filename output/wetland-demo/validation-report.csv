@@ -1,0 +1,2 @@
+severity,code,file,row,field,message
+WARNING,SMALL_SAMPLE_CI_WITHHELD,baci-results.csv,1,SP001,95% site-cluster bootstrap CI withheld for SP001 (point_count): fewer than 5 complete independent sites in at least one group

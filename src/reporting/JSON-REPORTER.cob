@@ -1,0 +1,435 @@
+>>SOURCE FORMAT FREE
+*> =====================================================================
+*> FIELDLEDGER - JSON-REPORTER.cob
+*> Writes strictly valid, RFC 8259-escaped research-receipt.json
+*> capturing complete provenance, configuration, record counts,
+*> exclusions, warnings, observation-model boundary, and result files.
+*> =====================================================================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. JSON-REPORTER.
+
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+    SELECT F-JSON ASSIGN TO DYNAMIC WS-FILE-PATH
+        ORGANIZATION IS LINE SEQUENTIAL
+        FILE STATUS IS WS-FS.
+
+DATA DIVISION.
+FILE SECTION.
+FD F-JSON.
+01 F-JSON-REC               PIC X(2048).
+
+WORKING-STORAGE SECTION.
+COPY "LIMITS.cpy".
+COPY "RUN-CONFIG.cpy".
+COPY "STUDY-RECORD.cpy".
+COPY "SOURCE-RECORD.cpy".
+COPY "SITE-RECORD.cpy".
+COPY "SURVEY-RECORD.cpy".
+COPY "OBSERVATION-RECORD.cpy".
+COPY "ERROR-RECORD.cpy".
+COPY "BACI-RESULT.cpy".
+COPY "UTILS-IFACE.cpy".
+
+01 WS-FILE-PATH             PIC X(512).
+01 WS-FS                    PIC XX.
+01 WS-WRITE-OK              PIC X(1).
+01 WS-LINE                  PIC X(2048).
+01 WS-I                     PIC 9(9) COMP-5.
+01 WS-WARN-SHOWN            PIC 9(9) COMP-5.
+01 WS-WARN-TOTAL            PIC 9(9) COMP-5.
+01 WS-COMMA                 PIC X(1).
+01 WS-ESC-A                 PIC X(1024).
+01 WS-ESC-B                 PIC X(1024).
+01 WS-NUM-A                 PIC X(64).
+01 WS-NUM-B                 PIC X(64).
+01 WS-NUM-C                 PIC X(64).
+01 WS-TOT-REJ               PIC 9(9) COMP-5.
+01 WS-TOT-MISSING           PIC 9(9) COMP-5.
+01 WS-VAL-OUTCOME           PIC X(16).
+
+LINKAGE SECTION.
+01 L-JSON-RC                PIC S9(4) COMP-5.
+
+PROCEDURE DIVISION USING L-JSON-RC.
+MAIN-JSON.
+    MOVE FL-EXIT-OK TO L-JSON-RC
+    MOVE "Y" TO WS-WRITE-OK
+
+    INITIALIZE CFG-REQ
+    MOVE "ENSURE-DIR" TO CREQ-OP
+    MOVE CFG-OUT-PATH TO CREQ-PATH-A
+    CALL "CONFIGURATION" USING CFG-REQ
+
+    INITIALIZE CFG-REQ
+    MOVE "JOIN-PATH"             TO CREQ-OP
+    MOVE CFG-OUT-PATH            TO CREQ-PATH-A
+    MOVE "research-receipt.json" TO CREQ-PATH-B
+    CALL "CONFIGURATION" USING CFG-REQ
+    MOVE CREQ-PATH-OUT TO WS-FILE-PATH
+
+    OPEN OUTPUT F-JSON
+    IF WS-FS NOT = "00"
+        PERFORM MARK-FAIL
+        MOVE FL-EXIT-IO-ERR TO L-JSON-RC
+        GOBACK
+    END-IF
+
+    COMPUTE WS-TOT-REJ = STUDY-REJECTED-ROWS + SRC-REJECTED-ROWS
+                       + SITE-REJECTED-ROWS  + SURV-REJECTED-ROWS
+                       + OBS-REJECTED-ROWS
+
+    MOVE 0 TO WS-TOT-MISSING
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > BACI-COUNT
+        ADD BR-OBS-MISSING(WS-I) TO WS-TOT-MISSING
+    END-PERFORM
+
+    IF ERR-ERROR-CNT > 0
+        MOVE "FAILED" TO WS-VAL-OUTCOME
+    ELSE
+        MOVE "PASSED" TO WS-VAL-OUTCOME
+    END-IF
+
+    MOVE "{" TO WS-LINE PERFORM WRITE-J
+
+    MOVE '  "application": "FIELDLEDGER",' TO WS-LINE PERFORM WRITE-J
+    STRING '  "version": "' FL-APP-VERSION '",' DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    STRING '  "gnucobol_version": "' FL-COMPILER-LABEL '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE CFG-RUN-ID TO WS-ESC-A PERFORM ESC-A
+    STRING '  "run_id": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE CFG-RUN-TIMESTAMP TO WS-ESC-A PERFORM ESC-A
+    STRING '  "timestamp": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE ST-STUDY-ID TO WS-ESC-A PERFORM ESC-A
+    STRING '  "study_id": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE ST-STUDY-TITLE TO WS-ESC-A PERFORM ESC-A
+    STRING '  "study_title": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE CFG-ANALYSIS-TYPE TO WS-ESC-A PERFORM ESC-A
+    STRING '  "analysis_type": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    STRING '  "validation_outcome": "' FUNCTION TRIM(WS-VAL-OUTCOME) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    *> Analysis configuration block
+    MOVE '  "analysis_configuration": {' TO WS-LINE PERFORM WRITE-J
+    MOVE CFG-STUDY-PATH TO WS-ESC-A PERFORM ESC-A
+    STRING '    "study_path": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE CFG-OUT-PATH TO WS-ESC-A PERFORM ESC-A
+    STRING '    "out_path": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    IF FUNCTION TRIM(CFG-SPECIES-FILTER) = SPACES
+        MOVE '    "species_filter": null,' TO WS-LINE
+    ELSE
+        MOVE CFG-SPECIES-FILTER TO WS-ESC-A PERFORM ESC-A
+        STRING '    "species_filter": "' FUNCTION TRIM(WS-ESC-A) '",'
+               DELIMITED BY SIZE INTO WS-LINE
+        END-STRING
+    END-IF
+    PERFORM WRITE-J
+
+    MOVE CFG-ACTIVE-METHOD TO WS-ESC-A PERFORM ESC-A
+    STRING '    "active_method": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+
+    MOVE '    "site_weighting": "equal_independent_sites",' TO WS-LINE
+    PERFORM WRITE-J
+    MOVE '    "missing_as_zero": false,' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "transition_policy": "excluded_from_primary_pre_post",'
+        TO WS-LINE PERFORM WRITE-J
+    MOVE '    "observation_model": "' TO WS-LINE
+    STRING '    "observation_model": "' FUNCTION TRIM(DMS-MODEL-ID) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE '    "detection_probability_corrected": false' TO WS-LINE
+    PERFORM WRITE-J
+    MOVE '  },' TO WS-LINE PERFORM WRITE-J
+
+    *> Bootstrap configuration block
+    MOVE '  "bootstrap_configuration": {' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "prng": "Park-Miller LCG (a=16807, m=2147483647)",'
+        TO WS-LINE PERFORM WRITE-J
+    MOVE '    "resampling_unit": "independent_site_cluster",'
+        TO WS-LINE PERFORM WRITE-J
+    MOVE CFG-SEED TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "seed": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE CFG-BOOTSTRAP TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "iterations": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE '    "min_complete_sites_per_group_for_ci": 5,' TO WS-LINE
+    PERFORM WRITE-J
+    MOVE '    "nominal_interval": "95%_percentile_2.5_to_97.5"' TO WS-LINE
+    PERFORM WRITE-J
+    MOVE '  },' TO WS-LINE PERFORM WRITE-J
+
+    *> Input manifest block
+    MOVE '  "input_manifest": {' TO WS-LINE PERFORM WRITE-J
+    MOVE CFG-MANIFEST-STATUS TO WS-ESC-A PERFORM ESC-A
+    STRING '    "status": "' FUNCTION TRIM(WS-ESC-A) '",'
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    IF FUNCTION TRIM(CFG-MANIFEST-PATH) = SPACES
+        MOVE '    "path": null,' TO WS-LINE
+    ELSE
+        MOVE CFG-MANIFEST-PATH TO WS-ESC-A PERFORM ESC-A
+        STRING '    "path": "' FUNCTION TRIM(WS-ESC-A) '",'
+               DELIMITED BY SIZE INTO WS-LINE
+        END-STRING
+    END-IF
+    PERFORM WRITE-J
+    IF FUNCTION TRIM(CFG-MANIFEST-DATE) = SPACES
+        MOVE '    "generated_date": null' TO WS-LINE
+    ELSE
+        MOVE CFG-MANIFEST-DATE TO WS-ESC-A PERFORM ESC-A
+        STRING '    "generated_date": "' FUNCTION TRIM(WS-ESC-A) '"'
+               DELIMITED BY SIZE INTO WS-LINE
+        END-STRING
+    END-IF
+    PERFORM WRITE-J
+    MOVE '  },' TO WS-LINE PERFORM WRITE-J
+
+    *> Record counts block
+    MOVE '  "record_counts": {' TO WS-LINE PERFORM WRITE-J
+    MOVE SRC-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "sources_valid": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE SITE-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "sites_valid": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE SITE-IMPACT-TOTAL TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "sites_impact": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE SITE-CONTROL-TOTAL TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "sites_control": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE SURV-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "surveys_valid": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE OBS-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "observations_valid": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE OBS-DETECTED-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "observations_detected": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE OBS-NOT-DET-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "observations_explicit_zero": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE WS-TOT-REJ TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "rejected_records": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE SURV-TRANS-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "excluded_transition_surveys": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE OBS-TRANS-EXCL-COUNT TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "excluded_transition_observations": ' FUNCTION TRIM(WS-NUM-A) ','
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE WS-TOT-MISSING TO NREQ-INT-VAL PERFORM FMT-INT-A
+    STRING '    "missing_species_survey_cells": ' FUNCTION TRIM(WS-NUM-A)
+           DELIMITED BY SIZE INTO WS-LINE
+    END-STRING
+    PERFORM WRITE-J
+    MOVE '  },' TO WS-LINE PERFORM WRITE-J
+
+    *> Result files block
+    MOVE '  "result_files": {' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "validation_report": "validation-report.csv",' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "data_quality": "data-quality.csv",' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "baci_results": "baci-results.csv",' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "site_summaries": "site-summaries.csv",' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "evidence_ledger": "evidence-ledger.csv",' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "markdown_report": "report.md",' TO WS-LINE PERFORM WRITE-J
+    MOVE '    "html_report": "report.html"' TO WS-LINE PERFORM WRITE-J
+    MOVE '  },' TO WS-LINE PERFORM WRITE-J
+
+    *> BACI strata summary array
+    MOVE '  "baci_summary": [' TO WS-LINE PERFORM WRITE-J
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > BACI-COUNT OR WS-WRITE-OK = "N"
+        IF WS-I < BACI-COUNT
+            MOVE "," TO WS-COMMA
+        ELSE
+            MOVE SPACE TO WS-COMMA
+        END-IF
+        MOVE BR-SPECIES(WS-I) TO WS-ESC-A PERFORM ESC-A
+        MOVE BR-METHOD(WS-I)  TO WS-ESC-B PERFORM ESC-B
+        IF BR-CALCULABLE(WS-I) = "Y"
+            MOVE BR-BACI-EST(WS-I) TO NREQ-DEC-VAL PERFORM FMT-DEC6-A
+        ELSE
+            MOVE "null" TO WS-NUM-A
+        END-IF
+        IF FUNCTION TRIM(BR-CI-STATUS(WS-I)) = "REPORTED"
+            MOVE BR-CI-LOW(WS-I)  TO NREQ-DEC-VAL PERFORM FMT-DEC6-B
+            MOVE BR-CI-HIGH(WS-I) TO NREQ-DEC-VAL PERFORM FMT-DEC6-C
+        ELSE
+            MOVE "null" TO WS-NUM-B
+            MOVE "null" TO WS-NUM-C
+        END-IF
+        STRING '    {"species_code": "' FUNCTION TRIM(WS-ESC-A)
+               '", "method": "' FUNCTION TRIM(WS-ESC-B)
+               '", "baci_estimate": ' FUNCTION TRIM(WS-NUM-A)
+               ', "ci_status": "' FUNCTION TRIM(BR-CI-STATUS(WS-I))
+               '", "ci_95_low": ' FUNCTION TRIM(WS-NUM-B)
+               ', "ci_95_high": ' FUNCTION TRIM(WS-NUM-C) '}' WS-COMMA
+               DELIMITED BY SIZE INTO WS-LINE
+        END-STRING
+        PERFORM WRITE-J
+    END-PERFORM
+    MOVE '  ],' TO WS-LINE PERFORM WRITE-J
+
+    *> Warnings array
+    MOVE 0 TO WS-WARN-TOTAL
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > ERR-COUNT
+        IF ERR-SEVERITY(WS-I) = "WARNING"
+            ADD 1 TO WS-WARN-TOTAL
+        END-IF
+    END-PERFORM
+
+    MOVE '  "warnings": [' TO WS-LINE PERFORM WRITE-J
+    MOVE 0 TO WS-WARN-SHOWN
+    PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > ERR-COUNT OR WS-WRITE-OK = "N"
+        IF ERR-SEVERITY(WS-I) = "WARNING"
+            ADD 1 TO WS-WARN-SHOWN
+            IF WS-WARN-SHOWN < WS-WARN-TOTAL
+                MOVE "," TO WS-COMMA
+            ELSE
+                MOVE SPACE TO WS-COMMA
+            END-IF
+            MOVE ERR-CODE(WS-I)    TO WS-ESC-A PERFORM ESC-A
+            MOVE ERR-MESSAGE(WS-I) TO WS-ESC-B PERFORM ESC-B
+            STRING '    {"code": "' FUNCTION TRIM(WS-ESC-A)
+                   '", "message": "' FUNCTION TRIM(WS-ESC-B) '"}' WS-COMMA
+                   DELIMITED BY SIZE INTO WS-LINE
+            END-STRING
+            PERFORM WRITE-J
+        END-IF
+    END-PERFORM
+    MOVE '  ]' TO WS-LINE PERFORM WRITE-J
+    MOVE "}" TO WS-LINE PERFORM WRITE-J
+
+    CLOSE F-JSON
+    IF WS-WRITE-OK = "N"
+        MOVE FL-EXIT-IO-ERR TO L-JSON-RC
+    END-IF
+    GOBACK.
+
+ESC-A.
+    INITIALIZE NUM-REQ
+    MOVE "ESC-JSON" TO NREQ-OP
+    MOVE WS-ESC-A   TO NREQ-TEXT-IN
+    CALL "NUMERIC-UTILS" USING NUM-REQ
+    MOVE NREQ-TEXT-OUT TO WS-ESC-A
+    .
+
+ESC-B.
+    INITIALIZE NUM-REQ
+    MOVE "ESC-JSON" TO NREQ-OP
+    MOVE WS-ESC-B   TO NREQ-TEXT-IN
+    CALL "NUMERIC-UTILS" USING NUM-REQ
+    MOVE NREQ-TEXT-OUT TO WS-ESC-B
+    .
+
+FMT-INT-A.
+    MOVE "FMT-INT" TO NREQ-OP
+    CALL "NUMERIC-UTILS" USING NUM-REQ
+    MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-NUM-A
+    .
+
+FMT-DEC6-A.
+    MOVE "FMT-DEC6" TO NREQ-OP
+    CALL "NUMERIC-UTILS" USING NUM-REQ
+    MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-NUM-A
+    .
+
+FMT-DEC6-B.
+    MOVE "FMT-DEC6" TO NREQ-OP
+    CALL "NUMERIC-UTILS" USING NUM-REQ
+    MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-NUM-B
+    .
+
+FMT-DEC6-C.
+    MOVE "FMT-DEC6" TO NREQ-OP
+    CALL "NUMERIC-UTILS" USING NUM-REQ
+    MOVE FUNCTION TRIM(NREQ-TEXT-OUT) TO WS-NUM-C
+    .
+
+WRITE-J.
+    IF WS-WRITE-OK = "N"
+        EXIT PARAGRAPH
+    END-IF
+    MOVE WS-LINE TO F-JSON-REC
+    WRITE F-JSON-REC
+    IF WS-FS NOT = "00"
+        PERFORM MARK-FAIL
+    END-IF
+    MOVE SPACES TO WS-LINE
+    .
+
+MARK-FAIL.
+    MOVE "N" TO WS-WRITE-OK
+    STRING "Failed writing research-receipt.json (status " WS-FS ")"
+           DELIMITED BY SIZE INTO CFG-ERROR-MSG
+    END-STRING
+    .

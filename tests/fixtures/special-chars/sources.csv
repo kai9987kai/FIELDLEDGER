@@ -1,0 +1,2 @@
+source_id,source_type,source_title,organisation,citation,source_url,licence,accessed_date
+SRC001,synthetic_test_dataset,"Title, with ""quotes"" & <tags>","Org, Inc.","Author (2026) ""Test""",https://example.invalid/esc?a=1&b=2,MIT,2026-11-20

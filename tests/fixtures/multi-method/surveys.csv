@@ -1,0 +1,17 @@
+survey_id,site_id,survey_date,survey_minutes,method,observer_id,source_id
+MP1,IMP01,2024-06-01,60,point_count,O1,SRC001
+MP2,IMP01,2025-06-01,60,point_count,O1,SRC001
+MP3,IMP02,2024-06-01,60,point_count,O1,SRC001
+MP4,IMP02,2025-06-01,60,point_count,O1,SRC001
+MP5,CTRL01,2024-06-01,60,point_count,O1,SRC001
+MP6,CTRL01,2025-06-01,60,point_count,O1,SRC001
+MP7,CTRL02,2024-06-01,60,point_count,O1,SRC001
+MP8,CTRL02,2025-06-01,60,point_count,O1,SRC001
+MA1,IMP01,2024-06-02,60,acoustic_recorder,O2,SRC001
+MA2,IMP01,2025-06-02,60,acoustic_recorder,O2,SRC001
+MA3,IMP02,2024-06-02,60,acoustic_recorder,O2,SRC001
+MA4,IMP02,2025-06-02,60,acoustic_recorder,O2,SRC001
+MA5,CTRL01,2024-06-02,60,acoustic_recorder,O2,SRC001
+MA6,CTRL01,2025-06-02,60,acoustic_recorder,O2,SRC001
+MA7,CTRL02,2024-06-02,60,acoustic_recorder,O2,SRC001
+MA8,CTRL02,2025-06-02,60,acoustic_recorder,O2,SRC001

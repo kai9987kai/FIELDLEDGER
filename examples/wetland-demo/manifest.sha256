@@ -1,0 +1,10 @@
+# FIELDLEDGER SHA-256 INPUT MANIFEST v1
+# dataset_id: study_001
+# generated_utc: 2026-11-20T18:15:39Z
+# algorithm: SHA-256
+# format: <sha256_hex>  <file_size_bytes>  <relative_path>
+e24c81952e3ee9936a0856fe86f5473932a59b399e2fae1fe14b9756692f55b3  318  observations.csv
+970b8f73e3e9af7d73066a14fac1f0c82fd6126ffe78c558083dbfddcb8913a7  298  sites.csv
+7a46f3015a563882f382bca3b75c8ac7fbd2dbf23a5d3afd8104fcd750eaa0a4  370  sources.csv
+7bb92090ad4f14837e68408c3cf0c3c078780b107127d40e1384f15646aa0ee3  279  study.csv
+22c7e95378394763daf1c98beb130c022d854acbab1cd00d58fe11b16dec2f8a  494  surveys.csv

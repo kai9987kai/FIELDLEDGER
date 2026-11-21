@@ -1,0 +1,2 @@
+study_id,study_title,study_design,primary_outcome,primary_outcome_unit,study_description
+study_dup,Duplicate Observations Fixture,BACI,species_observations,detections_per_hour,Contains duplicate observation_id and duplicate (survey_id, species_code)

@@ -1,0 +1,5 @@
+site_id,site_role,reference_date,area_ha,habitat_type,region_code
+IMP01,IMPACT,2025-01-01,30.0,marsh,R1
+IMP02,IMPACT,2025-01-01,35.0,marsh,R1
+CTRL01,CONTROL,2025-01-01,32.0,marsh,R1
+CTRL02,CONTROL,2025-01-01,31.0,marsh,R1

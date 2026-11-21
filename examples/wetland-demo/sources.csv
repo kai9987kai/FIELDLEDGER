@@ -1,0 +1,2 @@
+source_id,source_type,source_title,organisation,citation,source_url,licence,accessed_date
+SRC001,synthetic_test_dataset,FIELDLEDGER Synthetic Wetland Reference Fixture,FIELDLEDGER Project,"FIELDLEDGER v1.0.0 Synthetic Wetland Restoration Reference Fixture (explicitly synthetic, not empirical field data)",https://example.invalid/fieldledger/wetland-demo,MIT,2026-11-20

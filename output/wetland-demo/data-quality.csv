@@ -1,0 +1,22 @@
+metric,category,value,notes
+study_id,identity,study_001,Study identifier from study.csv
+validation_errors,validation,0,Total blocking validation errors
+validation_warnings,validation,1,Total non-blocking validation and statistical warnings
+sources_valid,counts,1,Valid provenance source records
+sites_valid,counts,4,Valid study sites (IMPACT + CONTROL)
+sites_impact,counts,2,Sites with site_role = IMPACT
+sites_control,counts,2,Sites with site_role = CONTROL
+surveys_valid,counts,8,Valid survey records
+surveys_pre,temporal,4,Surveys strictly before site reference_date
+surveys_post,temporal,4,Surveys strictly after site reference_date
+surveys_transition_excluded,exclusions,0,Same-day intervention surveys excluded from primary BACI
+observations_valid,counts,8,Valid observation records
+observations_detected,observations,8,Explicit DETECTED records (count > 0)
+observations_explicit_zero,observations,0,Explicit NOT_DETECTED records (count = 0)
+observations_transition_excluded,exclusions,0,Observations on site reference_date excluded from primary BACI
+records_rejected_total,validation,0,Total malformed or invalid rows rejected across all files
+duplicate_records_total,duplicates,0,"Total duplicate IDs and duplicate (survey_id, species_code) keys"
+distinct_methods,methods,1,Distinct observation methods in surveys.csv (never silently pooled)
+missing_species_survey_cells,missingness,0,Absent species-survey records across analyzed strata (NEVER converted to zero)
+overall_species_coverage_pct,missingness,100.00,Percentage of eligible site-surveys with explicit species records
+manifest_status,provenance,PRESENT,SHA-256 input manifest detection status

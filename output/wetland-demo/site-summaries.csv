@@ -1,0 +1,5 @@
+species_code,method,site_id,site_role,pre_surveys,post_surveys,transition_surveys,pre_observations,post_observations,transition_observations,explicit_zero_observations,missing_observations,pre_mean,post_mean,site_change,coverage_pct,status
+SP001,point_count,IMP01,IMPACT,1,1,0,1,1,0,0,0,10.000000,18.000000,8.000000,100.00,COMPLETE
+SP001,point_count,IMP02,IMPACT,1,1,0,1,1,0,0,0,12.000000,20.000000,8.000000,100.00,COMPLETE
+SP001,point_count,CTRL01,CONTROL,1,1,0,1,1,0,0,0,11.000000,13.000000,2.000000,100.00,COMPLETE
+SP001,point_count,CTRL02,CONTROL,1,1,0,1,1,0,0,0,9.000000,11.000000,2.000000,100.00,COMPLETE

@@ -1,0 +1,4 @@
+survey_id,site_id,survey_date,survey_minutes,method,observer_id,source_id
+P1,IMP01,2025-06-01,60,point_count,O1,SRC001
+P2,CTRL01,2024-06-01,60,point_count,O1,SRC001
+P3,CTRL01,2025-06-01,60,point_count,O1,SRC001
